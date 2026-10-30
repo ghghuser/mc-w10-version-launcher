@@ -1,1 +1,96 @@
+name: Build patched upstream
 
+# Builds the official MCMrARM/mc-w10-version-launcher with the fixes from tools/apply_fixes.py applied.
+# This fork's own source code is not used, so syncing the fork with upstream never conflicts.
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: 'Upstream branch, tag or commit to build (empty = default branch)'
+        required: false
+        default: ''
+      allow_missing:
+        description: 'Keep going even if a fix can not be applied (build may fail or lack that fix)'
+        type: boolean
+        default: false
+  schedule:
+    - cron: '0 3 * * 1'   # every Monday 03:00 UTC: notices upstream changes that break a fix
+  push:
+    paths:
+      - 'tools/**'
+      - '.github/workflows/build-patched.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout this repo (fix script)
+        uses: actions/checkout@v4
+        with:
+          path: fork
+
+      - name: Checkout upstream
+        uses: actions/checkout@v4
+        with:
+          repository: MCMrARM/mc-w10-version-launcher
+          ref: ${{ inputs.upstream_ref }}
+          path: src
+
+      # Optional: put your icon at tools/app-icon.ico to embed it into MCLauncher.exe.
+      - name: Copy icon
+        shell: pwsh
+        run: |
+          if (Test-Path fork/tools/app-icon.ico) {
+            Copy-Item fork/tools/app-icon.ico src/MCLauncher/app-icon.ico
+            "Icon copied."
+          } else {
+            "No tools/app-icon.ico in the fork; building without a custom icon."
+          }
+
+      - name: Apply fixes
+        shell: pwsh
+        env:
+          ALLOW_MISSING: ${{ inputs.allow_missing && '1' || '0' }}
+        run: python -I fork/tools/apply_fixes.py src
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup MSBuild (Visual Studio C++ toolset)
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      # WUTokenHelper uses packages.config (C++/WinRT); the C# project uses PackageReference.
+      - name: Restore packages
+        working-directory: src
+        run: |
+          nuget restore MCLauncher.sln
+          msbuild MCLauncher.sln /t:Restore /p:Configuration=Release /p:Platform=x64
+
+      - name: Build
+        working-directory: src
+        run: msbuild MCLauncher.sln /p:Configuration=Release /p:Platform=x64 /m
+
+      - name: Collect output
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item -Path "src\x64\Release\*" -Destination dist -Recurse -Force
+          Get-ChildItem dist -Recurse -Include *.pdb,*.ilk,*.iobj,*.ipdb | Remove-Item -Force
+          "Upstream commit: $(git -C src rev-parse HEAD)" | Out-File dist\BUILD_INFO.txt
+          Get-ChildItem dist | Select-Object Name, Length
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MCLauncher-patched
+          path: dist
+          if-no-files-found: error
