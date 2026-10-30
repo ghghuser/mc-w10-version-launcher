@@ -339,7 +339,7 @@ FIXES = {
             string exePath = Path.Combine(gameDir, "Minecraft.Windows.exe");
             if (!File.Exists(exePath))
                 return;
-            for (int i = 0; i < 30; i++) {
+            for (int i = 0; i < 20; i++) {
                 if (IsGameRunningFrom(exePath))
                     return;
                 await Task.Delay(500);
