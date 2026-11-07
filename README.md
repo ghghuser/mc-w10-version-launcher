@@ -2,12 +2,6 @@
 
 An **unofficial, modified version** of [MCMrARM/mc-w10-version-launcher](https://github.com/MCMrARM/mc-w10-version-launcher). It is not affiliated with the original author.
 
-## Download
-
-Get the app from the [Releases](../../releases) page of this repository: download the zip, unzip it somewhere and run `MCLauncher.exe`.
-
-> Do not use the green **Code → Download ZIP** button. That only downloads the source code, not the app.
-
 ## What is different
 
 See [CHANGES.md](CHANGES.md).
@@ -16,7 +10,7 @@ Licensed under GPLv3, the same as the official version (see [LICENSE.txt](LICENS
 
 ---
 
-The rest of this page is the original README of the official MCLauncher, kept for reference. Its "Setup" section points to the official releases; for this version, use the [Releases](../../releases) page of this repository instead.
+Below is the official README.
 
 ---
 
