@@ -15,8 +15,8 @@ This is an **unofficial, modified version** of [MCLauncher](https://github.com/M
 - If you launch a newer (GDK) version and the game does not open at all, the launcher now starts it directly.
 
 **Clearer messages and settings**
-- When the version list cannot be updated, the message now says which server failed and why, instead of only saying "failed".
 - The Remove button now asks "Are you sure?" before deleting a version.
+- When the version list cannot be updated, the message now says which server failed and why, instead of only saying "failed".
 - Changing the version list server address in the settings takes effect right away, without restarting the launcher. Extra spaces typed or pasted into the address are ignored.
 
 **Other**
