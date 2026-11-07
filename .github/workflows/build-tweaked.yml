@@ -169,6 +169,8 @@ jobs:
       FILE_TAG: ${{ needs.check.outputs.file_tag }}
       ARTIFACT_NAME: MCLauncher-tweaked
       GH_TOKEN: ${{ github.token }}
+      # The workspace root is not a git repository (checkouts are in fork/ and src/), so gh must be told the repo.
+      GH_REPO: ${{ github.repository }}
     steps:
       - name: Checkout this repo (fix script)
         uses: actions/checkout@v4
