@@ -1,13 +1,22 @@
-# MCLauncher (tweaked build)
+# MCLauncher (tweaked version)
 
-This repository publishes an **unofficial, modified build** of [MCMrARM/mc-w10-version-launcher](https://github.com/MCMrARM/mc-w10-version-launcher). It is not affiliated with the original author.
+An **unofficial, modified version** of [MCMrARM/mc-w10-version-launcher](https://github.com/MCMrARM/mc-w10-version-launcher). It is not affiliated with the original author.
 
-- **Download**: the [Releases](../../releases) section of this repository. Unzip it somewhere and run `MCLauncher.exe`.
-- **What is different**: see [CHANGES.md](CHANGES.md).
-- **How it is built**: GitHub Actions takes the upstream source, applies [`tools/apply_fixes.py`](tools/apply_fixes.py) and builds it. Releases are published with the same tag as upstream; when the fixes do not apply to the latest upstream release, the upstream default branch is built and published as a pre-release tagged `<upstream tag>+master.<commit>`. This repository does not contain a modified copy of the source code; each release has the complete corresponding source attached (`...-tweaked-source.zip`).
-- **License**: GPLv3, the same as upstream (see [LICENSE.txt](LICENSE.txt)).
+## Download
 
-Everything below is the original upstream README. If you want this build, download it from this repository's [Releases](../../releases) instead of the upstream one.
+Get the app from the [Releases](../../releases) page of this repository: download the zip, unzip it somewhere and run `MCLauncher.exe`.
+
+> Do not use the green **Code → Download ZIP** button. That only downloads the source code, not the app.
+
+## What is different
+
+See [CHANGES.md](CHANGES.md).
+
+Licensed under GPLv3, the same as the official version (see [LICENSE.txt](LICENSE.txt)).
+
+---
+
+The rest of this page is the original README of the official MCLauncher, kept for reference. Its "Setup" section points to the official releases; for this version, use the [Releases](../../releases) page of this repository instead.
 
 ---
 
