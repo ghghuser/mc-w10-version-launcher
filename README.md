@@ -1,8 +1,4 @@
-# MCLauncher (tweaked build) / MCLauncher（tweaked ビルド）
-
-[English](#english) | [日本語](#日本語) | [Original README / 公式のREADME](#mclauncher)
-
-## English
+# MCLauncher (tweaked build)
 
 This repository publishes an **unofficial, modified build** of [MCMrARM/mc-w10-version-launcher](https://github.com/MCMrARM/mc-w10-version-launcher). It is not affiliated with the original author.
 
@@ -11,18 +7,7 @@ This repository publishes an **unofficial, modified build** of [MCMrARM/mc-w10-v
 - **How it is built**: GitHub Actions takes the upstream source, applies [`tools/apply_fixes.py`](tools/apply_fixes.py) and builds it. Releases are published with the same tag as upstream; when the fixes do not apply to the latest upstream release, the upstream default branch is built and published as a pre-release tagged `<upstream tag>+master.<commit>`. This repository does not contain a modified copy of the source code; each release has the complete corresponding source attached (`...-tweaked-source.zip`).
 - **License**: GPLv3, the same as upstream (see [LICENSE.txt](LICENSE.txt)).
 
-The usage instructions below are the original ones from upstream. Replace the download location with this repository's [Releases](../../releases) if you want this build.
-
-## 日本語
-
-[MCMrARM/mc-w10-version-launcher](https://github.com/MCMrARM/mc-w10-version-launcher) の**非公式の改変ビルド**を公開するリポジトリです。元の作者とは無関係です。
-
-- **ダウンロード**: このリポジトリの [Releases](../../releases) から取得して、好きな場所に展開し、`MCLauncher.exe` を実行してください。
-- **違い**: [CHANGES.md](CHANGES.md) を参照してください。
-- **ビルド方法**: GitHub Actions が公式ソースを取得して、[`tools/apply_fixes.py`](tools/apply_fixes.py) を適用してビルドします。Release は公式と同じタグで公開します。公式の最新 release に修正が適用できない場合は、公式の既定ブランチをビルドして、`<公式タグ>+master.<コミット>` のプレリリースとして公開します。このリポジトリに改変済みのソースコードは置いておらず、各 Release に対応するソースコード一式を添付しています（`...-tweaked-source.zip`）。
-- **ライセンス**: 上流と同じ GPLv3 です（[LICENSE.txt](LICENSE.txt) 参照）。
-
-以下は上流の元の README です（英語）。この改変ビルドを使う場合は、ダウンロード先をこのリポジトリの [Releases](../../releases) に読み替えてください。
+Everything below is the original upstream README. If you want this build, download it from this repository's [Releases](../../releases) instead of the upstream one.
 
 ---
 
