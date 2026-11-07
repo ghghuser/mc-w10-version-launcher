@@ -1,11 +1,18 @@
 name: Build tweaked upstream release
 
-# Rebuilds the latest public release of MCMrARM/mc-w10-version-launcher with the fixes from
-# tools/apply_fixes.py applied, and publishes it as a release with the SAME tag as upstream.
+# Builds MCMrARM/mc-w10-version-launcher with the fixes from tools/apply_fixes.py applied and
+# publishes the result as a release of THIS fork.
 # This fork's own source code is not used, so syncing the fork with upstream never conflicts.
 #
-# - schedule : builds only when upstream has a release this fork has not published yet.
-# - push     : rebuilds the current upstream release (the fix script changed).
+# What is built (decided automatically in the "check" job):
+#   1. The latest public upstream release, if the fixes apply to it. The release here gets the SAME
+#      tag and title as upstream (exact version match) and can be marked "Latest".
+#   2. Otherwise (the fixes were written for newer upstream code than the release contains), the
+#      upstream default branch. The release is then a PRE-RELEASE tagged "<upstream tag>+master.<sha7>",
+#      so it can never be mistaken for the official version.
+#
+# - schedule : builds only when the release/tag that would be published does not exist here yet.
+# - push     : rebuilds (the fix script changed).
 # - dispatch : always builds (optionally a specific upstream release tag).
 # - Only the newest build artifact is kept; the release assets are the permanent copies.
 
@@ -13,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       upstream_tag:
-        description: 'Upstream release tag to build (empty = latest public release)'
+        description: 'Upstream release tag to build (empty = latest release, or the default branch if the fixes do not apply to it)'
         required: false
         default: ''
       allow_missing:
@@ -21,7 +28,7 @@ on:
         type: boolean
         default: false
   schedule:
-    - cron: '0 3 * * *'   # daily 03:00 UTC: cheap check, builds only when a new upstream release appears
+    - cron: '0 3 * * *'   # daily 03:00 UTC: cheap check, builds only when there is something new
   push:
     paths:
       - 'tools/**'
@@ -37,54 +44,38 @@ jobs:
     permissions:
       contents: read
     outputs:
-      tag: ${{ steps.v.outputs.tag }}
-      build: ${{ steps.v.outputs.build }}
-      exists: ${{ steps.v.outputs.exists }}
+      mode: ${{ steps.v.outputs.mode }}
+      source_sha: ${{ steps.v.outputs.source_sha }}
+      base_tag: ${{ steps.v.outputs.base_tag }}
+      release_tag: ${{ steps.v.outputs.release_tag }}
+      file_tag: ${{ steps.v.outputs.file_tag }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
       is_latest: ${{ steps.v.outputs.is_latest }}
+      exists: ${{ steps.v.outputs.exists }}
+      build: ${{ steps.v.outputs.build }}
     steps:
-      - name: Resolve upstream release
-        id: v
+      - name: Resolve upstream release and default branch
+        id: rel
         env:
           GH_TOKEN: ${{ github.token }}
           INPUT_TAG: ${{ inputs.upstream_tag }}
-          EVENT: ${{ github.event_name }}
         run: |
-          latest=$(gh api repos/MCMrARM/mc-w10-version-launcher/releases/latest --jq .tag_name)
+          up=repos/MCMrARM/mc-w10-version-launcher
+          latest=$(gh api $up/releases/latest --jq .tag_name)
           tag="${INPUT_TAG:-$latest}"
           if [ -z "$tag" ]; then
             echo "Upstream has no public release." >&2
             exit 1
           fi
-
-          is_latest=false
-          if [ "$tag" = "$latest" ]; then is_latest=true; fi
-
-          exists=false
-          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then exists=true; fi
-
-          build=true
-          if [ "$EVENT" = "schedule" ] && [ "$exists" = "true" ]; then build=false; fi
-
+          branch=$(gh api $up --jq .default_branch)
           {
+            echo "latest=$latest"
             echo "tag=$tag"
-            echo "build=$build"
-            echo "exists=$exists"
-            echo "is_latest=$is_latest"
+            echo "sha=$(gh api $up/commits/$tag --jq .sha)"
+            echo "head=$(gh api $up/commits/$branch --jq .sha)"
+            echo "explicit=$([ -n "$INPUT_TAG" ] && echo true || echo false)"
           } >> "$GITHUB_OUTPUT"
-          echo "Upstream release: $tag (already released here: $exists, build: $build)" >> "$GITHUB_STEP_SUMMARY"
 
-  build:
-    needs: check
-    if: needs.check.outputs.build == 'true'
-    runs-on: windows-latest
-    permissions:
-      contents: write   # create/update the release
-      actions: write    # delete old artifacts
-    env:
-      TAG: ${{ needs.check.outputs.tag }}
-      ARTIFACT_NAME: MCLauncher-tweaked
-      GH_TOKEN: ${{ github.token }}
-    steps:
       - name: Checkout this repo (fix script)
         uses: actions/checkout@v4
         with:
@@ -94,7 +85,101 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: MCMrARM/mc-w10-version-launcher
-          ref: ${{ needs.check.outputs.tag }}
+          ref: ${{ steps.rel.outputs.sha }}
+          path: src
+
+      # Dry run on the release source: do the fixes apply to it?
+      - name: Check whether the fixes apply to the release
+        id: dry
+        run: |
+          if python3 -I fork/tools/apply_fixes.py src; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Decide what to build
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          ALLOW_MISSING: ${{ inputs.allow_missing && 'true' || 'false' }}
+          TAG: ${{ steps.rel.outputs.tag }}
+          LATEST: ${{ steps.rel.outputs.latest }}
+          SHA: ${{ steps.rel.outputs.sha }}
+          HEAD_SHA: ${{ steps.rel.outputs.head }}
+          EXPLICIT: ${{ steps.rel.outputs.explicit }}
+          DRY_OK: ${{ steps.dry.outputs.ok }}
+        run: |
+          prerelease=false
+          is_latest=false
+          if [ "$DRY_OK" = "true" ]; then
+            mode=release
+            source_sha="$SHA"
+            release_tag="$TAG"
+            if [ "$TAG" = "$LATEST" ]; then is_latest=true; fi
+          elif [ "$EXPLICIT" = "true" ] && [ "$ALLOW_MISSING" != "true" ]; then
+            echo "The fixes do not apply to upstream release $TAG. Update tools/apply_fixes.py, or run with allow_missing." >&2
+            exit 1
+          elif [ "$EXPLICIT" = "true" ]; then
+            mode=release
+            source_sha="$SHA"
+            release_tag="$TAG"
+          elif [ "$HEAD_SHA" = "$SHA" ] && [ "$ALLOW_MISSING" != "true" ]; then
+            echo "The fixes do not apply to the latest upstream release $TAG (which is also the default branch head). Update tools/apply_fixes.py." >&2
+            exit 1
+          else
+            # The release is older than the code the fixes were written for: build the default branch.
+            mode=master
+            source_sha="$HEAD_SHA"
+            release_tag="$TAG+master.${HEAD_SHA:0:7}"
+            prerelease=true
+          fi
+
+          exists=false
+          if gh release view "$release_tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then exists=true; fi
+
+          build=true
+          if [ "$EVENT" = "schedule" ] && [ "$exists" = "true" ]; then build=false; fi
+
+          {
+            echo "mode=$mode"
+            echo "source_sha=$source_sha"
+            echo "base_tag=$TAG"
+            echo "release_tag=$release_tag"
+            echo "file_tag=${release_tag//+/-}"
+            echo "prerelease=$prerelease"
+            echo "is_latest=$is_latest"
+            echo "exists=$exists"
+            echo "build=$build"
+          } >> "$GITHUB_OUTPUT"
+          echo "Mode: $mode, release tag: $release_tag, upstream commit: $source_sha (already released here: $exists, build: $build)" >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    needs: check
+    if: needs.check.outputs.build == 'true'
+    runs-on: windows-latest
+    permissions:
+      contents: write   # create/update the release
+      actions: write    # delete old artifacts
+    env:
+      MODE: ${{ needs.check.outputs.mode }}
+      BASE_TAG: ${{ needs.check.outputs.base_tag }}
+      RELEASE_TAG: ${{ needs.check.outputs.release_tag }}
+      FILE_TAG: ${{ needs.check.outputs.file_tag }}
+      ARTIFACT_NAME: MCLauncher-tweaked
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout this repo (fix script)
+        uses: actions/checkout@v4
+        with:
+          path: fork
+
+      - name: Checkout upstream
+        uses: actions/checkout@v4
+        with:
+          repository: MCMrARM/mc-w10-version-launcher
+          ref: ${{ needs.check.outputs.source_sha }}
           path: src
 
       # Optional: put your icon at tools/app-icon.ico to embed it into MCLauncher.exe.
@@ -115,12 +200,12 @@ jobs:
         run: python -I fork/tools/apply_fixes.py src
 
       # GPLv3 section 6: the release must come with the Corresponding Source.
-      # This is the upstream release source with the fixes already applied (taken before building).
+      # This is the upstream source with the fixes already applied (taken before building).
       - name: Archive modified source
         shell: pwsh
         run: |
-          tar -a -c -f "MCLauncher-$env:TAG-tweaked-source.zip" --exclude=.git -C src .
-          Get-Item "MCLauncher-$env:TAG-tweaked-source.zip" | Select-Object Name, Length
+          tar -a -c -f "MCLauncher-$env:FILE_TAG-tweaked-source.zip" --exclude=.git -C src .
+          Get-Item "MCLauncher-$env:FILE_TAG-tweaked-source.zip" | Select-Object Name, Length
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -153,19 +238,25 @@ jobs:
           # GPLv3: ship the license text and mark this as a modified version (section 5a).
           Copy-Item src\LICENSE.txt dist\LICENSE.txt
           $today = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
+          $sha = git -C src rev-parse HEAD
+          if ($env:MODE -eq 'master') {
+            $base = "Built from the upstream default branch (newer than upstream release $env:BASE_TAG, NOT an official release)"
+          } else {
+            $base = "Upstream release: $env:BASE_TAG"
+          }
           @(
             "This is an UNOFFICIAL, MODIFIED build of MCLauncher (MCMrARM/mc-w10-version-launcher)."
             "It is NOT the official release. Do not report problems with it to the original author."
             ""
-            "Upstream release: $env:TAG"
-            "Upstream commit: $(git -C src rev-parse HEAD)"
+            $base
+            "Upstream commit: $sha"
             "Modified by: $env:GITHUB_REPOSITORY (changes: tools/apply_fixes.py)"
             "Fix script commit: $env:GITHUB_SHA"
             "Built on: $today (UTC)"
             ""
             "Licensed under the GNU General Public License v3 (see LICENSE.txt)."
-            "Corresponding source: the 'MCLauncher-$env:TAG-tweaked-source.zip' asset of the same release,"
-            "or https://github.com/MCMrARM/mc-w10-version-launcher/tree/$env:TAG plus tools/apply_fixes.py at the fix script commit above."
+            "Corresponding source: the 'MCLauncher-$env:FILE_TAG-tweaked-source.zip' asset of the same release,"
+            "or https://github.com/MCMrARM/mc-w10-version-launcher/tree/$sha plus tools/apply_fixes.py at the fix script commit above."
           ) | Out-File dist\BUILD_INFO.txt -Encoding utf8
           Get-ChildItem dist | Select-Object Name, Length
 
@@ -191,22 +282,29 @@ jobs:
             }
           }
 
-      # Release uses exactly the upstream tag and title. Skipped when fixes were allowed to be missing.
+      # A release build uses exactly the upstream tag and title; a master build is a pre-release.
+      # Skipped when fixes were allowed to be missing.
       - name: Publish release
         if: ${{ !inputs.allow_missing }}
         shell: pwsh
         env:
           EXISTS: ${{ needs.check.outputs.exists }}
           IS_LATEST: ${{ needs.check.outputs.is_latest }}
+          PRERELEASE: ${{ needs.check.outputs.prerelease }}
         run: |
-          $asset = "MCLauncher-$env:TAG-tweaked-x64.zip"
+          $asset = "MCLauncher-$env:FILE_TAG-tweaked-x64.zip"
           Compress-Archive -Path dist\* -DestinationPath $asset -Force
+          $source = "MCLauncher-$env:FILE_TAG-tweaked-source.zip"
 
           $upstreamSha = git -C src rev-parse HEAD
-          $source = "MCLauncher-$env:TAG-tweaked-source.zip"
           $today = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
+          if ($env:MODE -eq 'master') {
+            $what = "**Unofficial, modified pre-release.** Built from the upstream default branch at commit [$upstreamSha](https://github.com/MCMrARM/mc-w10-version-launcher/commit/$upstreamSha), which is newer than the latest upstream release [$env:BASE_TAG](https://github.com/MCMrARM/mc-w10-version-launcher/releases/tag/$env:BASE_TAG), with the changes from ``tools/apply_fixes.py`` applied."
+          } else {
+            $what = "**Unofficial, modified build** of upstream release [$env:BASE_TAG](https://github.com/MCMrARM/mc-w10-version-launcher/releases/tag/$env:BASE_TAG) by MCMrARM, with the changes from ``tools/apply_fixes.py`` applied."
+          }
           @(
-            "**Unofficial, modified build** of upstream release [$env:TAG](https://github.com/MCMrARM/mc-w10-version-launcher/releases/tag/$env:TAG) by MCMrARM, with the changes from ``tools/apply_fixes.py`` applied. Not affiliated with the original author. Built on $today (UTC)."
+            "$what Not affiliated with the original author. Built on $today (UTC)."
             ""
             "Licensed under GPLv3, same as upstream. The complete corresponding source (upstream source with the changes applied) is attached as ``$source``."
             ""
@@ -214,9 +312,10 @@ jobs:
             "- Fix script commit: $env:GITHUB_SHA"
           ) | Out-File notes.md -Encoding utf8
 
+          $flags = @('--title', $env:RELEASE_TAG, '--notes-file', 'notes.md', "--latest=$env:IS_LATEST", "--prerelease=$env:PRERELEASE")
           if ($env:EXISTS -eq 'true') {
-            gh release upload $env:TAG $asset $source --clobber
-            gh release edit $env:TAG --title $env:TAG --notes-file notes.md --latest=$env:IS_LATEST
+            gh release upload $env:RELEASE_TAG $asset $source --clobber
+            gh release edit $env:RELEASE_TAG @flags
           } else {
-            gh release create $env:TAG $asset $source --title $env:TAG --notes-file notes.md --target $env:GITHUB_SHA --latest=$env:IS_LATEST
+            gh release create $env:RELEASE_TAG $asset $source @flags --target $env:GITHUB_SHA
           }
