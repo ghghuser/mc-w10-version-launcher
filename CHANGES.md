@@ -10,12 +10,12 @@ This is an **unofficial, modified version** of [MCLauncher](https://github.com/M
 - The list you saw last time stays on screen while the launcher checks for updates, and new versions are simply added at the top. You no longer see an empty list while it loads.
 - Downloads are a little smaller, so the list loads quicker.
 
-**Safer launching**
+**Safer launching and removing**
 - Before launching a version, the launcher checks that the game's main file is not damaged. If it is damaged, you get a message and **your currently installed Minecraft is left untouched**. (Before, a broken version could replace the working one.)
 - If you launch a newer (GDK) version and the game does not open at all, the launcher now starts it directly.
+- The Remove button now asks "Are you sure?" before deleting a version.
 
 **Clearer messages and settings**
-- The Remove button now asks "Are you sure?" before deleting a version.
 - When the version list cannot be updated, the message now says which server failed and why, instead of only saying "failed".
 - Changing the version list server address in the settings takes effect right away, without restarting the launcher. Extra spaces typed or pasted into the address are ignored.
 
