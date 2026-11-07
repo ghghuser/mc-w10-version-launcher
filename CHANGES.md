@@ -2,27 +2,27 @@
 
 This is an **unofficial, modified version** of [MCLauncher](https://github.com/MCMrARM/mc-w10-version-launcher) by MCMrARM. It is not affiliated with the original author, so please do not report problems with this version to them.
 
-## What is improved in the app
+## What is changed in the app
 
-**The version list works again, and shows up faster**
-- The old server that the launcher used for the older (UWP) versions is down and returns an error, so the version list could not load. This version switches to a working copy automatically.
-- If one server is slow or down, the launcher no longer waits for it. It asks both servers at once and uses whichever answers first.
-- The list you saw last time stays on screen while the launcher checks for updates, and new versions are simply added at the top. You no longer see an empty list while it loads.
-- Downloads are a little smaller, so the list loads quicker.
+**Version list**
+- The server that the launcher uses by default for the older (UWP) versions is no longer responding (it returns an error), so this version uses a working copy of the list instead. It switches automatically.
+- The launcher asks both servers at once and uses whichever answers first, so it does not wait for a slow or unavailable server.
+- The list from last time stays on screen while the launcher checks for updates, and new versions are added at the top. The list is not emptied while it loads.
+- Downloads use compression, so they are a little smaller.
 
-**Safer launching and removing**
-- Before launching a version, the launcher checks that the game's main file is not damaged. If it is damaged, you get a message and **your currently installed Minecraft is left untouched**. (Before, a broken version could replace the working one.)
-- If you launch a newer (GDK) version and the game does not open at all, the launcher now starts it directly.
-- The Remove button now asks "Are you sure?" before deleting a version.
+**Launching and removing**
+- Before launching a version, the launcher checks that the game's main file is not damaged. If it is damaged, a message is shown and **your currently installed Minecraft is left untouched**. (Without this check, a damaged version could replace the one that is working.)
+- If you launch a newer (GDK) version and the game does not open at all, the launcher starts it directly.
+- The Remove button asks "Are you sure?" before deleting a version.
 
-**Clearer messages and settings**
-- When the version list cannot be updated, the message now says which server failed and why, instead of only saying "failed".
+**Messages and settings**
+- When the version list cannot be updated, the message says which server failed and why, instead of only saying "failed".
 - Changing the version list server address in the settings takes effect right away, without restarting the launcher. Extra spaces typed or pasted into the address are ignored.
 
 **Other**
-- Added an icon to the EXE file..
+- An icon is added to the EXE file.
 
-Anything that the official version fixes on its own later is skipped automatically, so these changes do not pile up on top of the official ones.
+If the official version later makes the same change on its own, the matching change here is skipped automatically, so the two do not conflict.
 
 ## Which version should I download?
 
