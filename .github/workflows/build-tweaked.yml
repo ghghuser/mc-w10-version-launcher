@@ -239,6 +239,7 @@ jobs:
           Get-ChildItem dist -Recurse -Include *.pdb,*.ilk,*.iobj,*.ipdb | Remove-Item -Force
           # GPLv3: ship the license text and mark this as a modified version (section 5a).
           Copy-Item src\LICENSE.txt dist\LICENSE.txt
+          if (Test-Path fork\CHANGES.md) { Copy-Item fork\CHANGES.md dist\CHANGES.md }
           $today = (Get-Date).ToUniversalTime().ToString('yyyy-MM-dd')
           $sha = git -C src rev-parse HEAD
           if ($env:MODE -eq 'master') {
@@ -307,6 +308,8 @@ jobs:
           }
           @(
             "$what Not affiliated with the original author. Built on $today (UTC)."
+            ""
+            "Changes: [CHANGES.md](https://github.com/$env:GITHUB_REPOSITORY/blob/$env:GITHUB_SHA/CHANGES.md)"
             ""
             "Licensed under GPLv3, same as upstream. The complete corresponding source (upstream source with the changes applied) is attached as ``$source``."
             ""
